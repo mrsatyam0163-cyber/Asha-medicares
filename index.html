@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Asha Medicare - Ashamed.com</title>
+    <style>
+        body { font-family: sans-serif; background: #f4f4f4; margin: 0; }
+        header { background: #ee00ff; color: white; padding: 15px; text-align: center; }
+        .container { padding: 20px; max-width: 1000px; margin: auto; }
+        .admin-box { display: none; background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        input { padding: 10px; margin: 5px; border: 1px solid #ccc; border-radius: 4px; }
+        .product-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
+        .card { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .card img { width: 100%; height: 150px; object-fit: contain; }
+        .search-bar { width: 100%; padding: 15px; margin-bottom: 20px; font-size: 16px; }
+        .delete-btn { background: red; color: white; border: none; padding: 5px; cursor: pointer; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>Asha Medicare</h1>
+</header>
+
+<div class="container">
+    <div class="admin-box" id="adminPanel">
+        <h3>Naya Product Add Karein</h3>
+        <input type="text" id="name" placeholder="Medicine Name">
+        <input type="number" id="mrp" placeholder="MRP Price">
+        <input type="number" id="disc" placeholder="Discount %">
+        <input type="text" id="img" placeholder="Image Link (URL)">
+        <button onclick="saveProduct()" style="padding: 10px; background: green; color: white; border: none; border-radius: 5px;">Add to Website</button>
+    </div>
+
+    <input type="text" id="search" class="search-bar" placeholder="Search product here..." onkeyup="search()">
+
+    <div class="product-grid" id="display"></div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+<script>
+    // Aapke screenshot se li gayi sahi config
+    const firebaseConfig = {
+        apiKey: "AIzaSyDkIoeLl4iLcuqELV0eCvIe5asAmwacWwI",
+        authDomain: "asha-medicare-41262.firebaseapp.com",
+        projectId: "asha-medicare-41262",
+        storageBucket: "asha-medicare-41262.firebasestorage.app",
+        messagingSenderId: "1059351175957",
+        appId: "1:1059351175957:web:800af0ae45784b39d5bf1c",
+        databaseURL: "https://asha-medicare-41262-default-rtdb.firebaseio.com/" 
+    };
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    // Secret Login logic
+    const params = new URLSearchParams(window.location.search);
+    if(params.get('login') === 'captain') {
+        document.getElementById('adminPanel').style.display = 'block';
+    }
+
+    let globalInventory = [];
+
+    // Real-time Update: Jab bhi data change hoga apne aap dikhega
+    db.ref('medicines').on('value', (snapshot) => {
+        const data = snapshot.val();
+        globalInventory = [];
+        for (let id in data) {
+            globalInventory.push({ id, ...data[id] });
+        }
+        renderData(globalInventory);
+    });
+
+    function saveProduct() {
+        let name = document.getElementById('name').value;
+        let mrp = document.getElementById('mrp').value;
+        let disc = document.getElementById('disc').value;
+        let img = document.getElementById('img').value || 'https://via.placeholder.com/150';
+
+        if(name && mrp) {
+            db.ref('medicines').push({ name, mrp, disc, img })
+            .then(() => {
+                alert("Medicine add ho gayi!");
+                // Clear inputs
+                document.getElementById('name').value = '';
+                document.getElementById('mrp').value = '';
+                document.getElementById('disc').value = '';
+                document.getElementById('img').value = '';
+            })
+            .catch((error) => {
+                alert("Error: " + error.message);
+            });
+        } else {
+            alert("Please fill name and price!");
+        }
+    }
+
+    function renderData(list) {
+        let html = '';
+        list.forEach((item) => {
+            let salesRate = item.mrp - (item.mrp * item.disc / 100);
+            html += `
+                <div class="card">
+                    <img src="${item.img}">
+                    <h4>${item.name}</h4>
+                    <p>MRP: ₹<del>${item.mrp}</del></p>
+                    <p style="color:green">Disc: ${item.disc}%</p>
+                    <p><b>Price: ₹${salesRate.toFixed(2)}</b></p>
+                    <button class="delete-btn" onclick="removeProduct('${item.id}')">Delete</button>
+                </div>
+            `;
+        });
+        document.getElementById('display').innerHTML = html;
+    }
+
+    function search() {
+        let term = document.getElementById('search').value.toLowerCase();
+        let filtered = globalInventory.filter(i => i.name.toLowerCase().includes(term));
+        renderData(filtered);
+    }
+
+    function removeProduct(id) {
+        if(confirm("Delete karna chahte hain?")) {
+            db.ref('medicines/' + id).remove();
+        }
+    }
+</script>
+</body>
+</html>
